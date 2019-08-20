@@ -1,0 +1,21 @@
+#pragma once
+
+// Hardware settings
+#define PROBE_GPIO              4
+#define MOTOR_GPIO              2
+#define LED_RED_GPIO            27
+#define LED_GREEN_GPIO          26
+#define LED_BLUE_GPIO           25
+#define BUTTON_GPIO             22
+
+// Wifi Settings
+#define WIFI_SSID               "<<YOUR SSID>>"
+#define WIFI_PASSWORD           "<<YOUR PASSWORD>>"
+
+// MQTT Settings
+#define MQTT_SERVER             "<<SERVER>>"
+#define MQTT_PORT               <<PORT>>
+#define MQTT_CLIENT_ID          "<<CLIENT ID>>"
+#define MQTT_USERNAME           "<<USERNAME>>"
+#define MQTT_PASSWORD           "<<PASSWORD>>"
+#define MQTT_TOPIC              "<<TOPIC>>"
