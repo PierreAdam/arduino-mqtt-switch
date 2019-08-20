@@ -5,7 +5,7 @@
 Main* main;
 
 void setup() {
-  main = new Main();
+  main = new Main(&mqttCallback);
   attachInterrupt(digitalPinToInterrupt(BUTTON_GPIO), buttonInterrupt, RISING);
 }
 
@@ -15,4 +15,8 @@ void loop() {
 
 void buttonInterrupt() {
   main->buttonInterrupt();
+}
+
+void mqttCallback(String &topic, String &payload) {
+  main->messageReceived(topic, payload);
 }

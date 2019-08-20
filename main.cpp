@@ -1,28 +1,26 @@
 #include <arduino.h>
 #include <WiFi.h>
-#include "Adafruit_MQTT.h"
-#include "Adafruit_MQTT_Client.h"
 #include "main.hpp"
 #include "config.hpp"
 
-const char* wifiSSID = "Livebox-4F53";
-const char* wifiPassword = "10820CF7C6A9103099ECE641E2";
-
-Main::Main() {
+Main::Main(MQTTClientCallbackSimple mqttCallback) {
   Serial.begin(115200);
   Serial.println(F("Starting"));
   //Serial.println(xPortGetCoreID());
   delay(10);
 
+  this->connectWifi();
 
-  this->client = new WiFiClient();
-  this->mqtt = new Adafruit_MQTT_Client(this->client, MQTT_SERVER, MQTT_PORT, MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD);
-  this->mqttAlarmSubscriber = new Adafruit_MQTT_Subscribe(this->mqtt, MQTT_TOPIC, 2);
-
-  this->mqtt->subscribe(this->mqttAlarmSubscriber);
+  this->wifiClient = new WiFiClient();
+  this->mqttClient = new MQTTClient();
+  
+  this->mqttClient->begin(MQTT_SERVER, MQTT_PORT, *(this->wifiClient));
+  this->mqttClient->onMessage(mqttCallback);
+  this->connectMQTT();
 }
 
 // Function to connect and reconnect the Wifi.
+// Should be called in the loop function and it will take care if connecting.
 bool    Main::connectWifi() {
   if (WiFi.status() == WL_CONNECTED) {
     return true;
@@ -30,9 +28,9 @@ bool    Main::connectWifi() {
 
   WiFi.disconnect();
   Serial.print(F("Connecting to "));
-  Serial.println(wifiSSID);
+  Serial.println(WIFI_SSID);
 
-  WiFi.begin(wifiSSID, wifiPassword);
+  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   
   uint8_t timeout = 20;
   while (WiFi.status() != WL_CONNECTED && timeout > 0) {
@@ -56,29 +54,31 @@ bool    Main::connectWifi() {
 // Function to connect and reconnect as necessary to the MQTT server.
 // Should be called in the loop function and it will take care if connecting.
 bool    Main::connectMQTT() {
-  int8_t ret;
-
-  // Stop if already connected.
-  if (mqtt->connected()) {
+  if (this->mqttClient->connected()) {
     return true;
   }
 
-  Serial.print(F("Connecting to MQTT... "));
+  this->mqttClient->disconnect();
+  Serial.print(F("Connecting to MQTT server "));
+  Serial.println(MQTT_SERVER);
 
-  uint8_t retries = 3;
-  while ((ret = this->mqtt->connect()) != 0) {
-       Serial.println(this->mqtt->connectErrorString(ret));
-       Serial.println(F("Retrying MQTT connection in 5 seconds..."));
-       mqtt->disconnect();
-       delay(5000);
-       retries--;
-       if (retries == 0) {
-         WiFi.disconnect(); // Lost wifi ??
-         return false;
-       }
+  uint8_t timeout = 20;
+  while (!this->mqttClient->connect(MQTT_CLIENT_ID, MQTT_USERNAME, MQTT_PASSWORD) && timeout > 0) {
+    delay(500);
+    Serial.print(".");
+    timeout--;
   }
-  Serial.println(F("MQTT Connected!"));
-  return true;
+
+  Serial.println("");
+
+  if (this->mqttClient->connected()) {
+    Serial.println(F("MQTT Connected !"));
+    this->mqttClient->subscribe(MQTT_TOPIC, 1);
+    return true;
+  } else {
+    Serial.println(F("MQTT Unable to connect to the server !"));
+    return false;
+  }
 }
 
 void    Main::loop() {
@@ -87,17 +87,15 @@ void    Main::loop() {
     return;
   }
 
-  Adafruit_MQTT_Subscribe *subscription;
-  while ((subscription = this->mqtt->readSubscription(5000))) {
-    if (subscription == this->mqttAlarmSubscriber) {
-      Serial.print(F("Data received : "));
-      Serial.println((char *)subscription->lastread);
-    }
-  }
+  this->mqttClient->loop();
+  
+  delay(1000);
+}
 
-  if(!this->mqtt->ping(5)) {
-    this->mqtt->disconnect();
-  }
+void    Main::messageReceived(String &topic, String &payload) {
+  Serial.print(topic);
+  Serial.print(" : ");
+  Serial.println(payload);
 }
 
 void    Main::buttonInterrupt() {

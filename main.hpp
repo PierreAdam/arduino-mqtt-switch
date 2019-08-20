@@ -1,20 +1,19 @@
 #pragma once
 #include <WiFi.h>
 #include <WiFiClient.h>
-#include "Adafruit_MQTT.h"
-#include "Adafruit_MQTT_Client.h"
+#include <MQTT.h>
 
 
 class Main {
 private:
-  WiFiClient* client;
-  Adafruit_MQTT_Client* mqtt;
-  Adafruit_MQTT_Subscribe* mqttAlarmSubscriber;
+  WiFiClient* wifiClient;
+  MQTTClient* mqttClient;
 
 public:
-  Main();
-  void loop();
-  void buttonInterrupt();
+  Main(MQTTClientCallbackSimple mqttCallback);
   bool connectWifi();
   bool connectMQTT();
+  void loop();
+  void messageReceived(String &topic, String &payload);
+  void buttonInterrupt();
 };
