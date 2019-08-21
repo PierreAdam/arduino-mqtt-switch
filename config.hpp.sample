@@ -18,4 +18,5 @@
 #define MQTT_CLIENT_ID          "<<CLIENT ID>>"
 #define MQTT_USERNAME           "<<USERNAME>>"
 #define MQTT_PASSWORD           "<<PASSWORD>>"
-#define MQTT_TOPIC              "<<TOPIC>>"
+#define MQTT_TOPIC_DURATION     "<<TOPIC_DURATION>>"
+#define MQTT_TOPIC_TRIGGER      "<<TOPIC_TRIGGER>>"

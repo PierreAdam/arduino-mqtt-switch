@@ -6,17 +6,17 @@
 Main::Main(MQTTClientCallbackSimple mqttCallback) {
   Serial.begin(115200);
   Serial.println(F("Starting"));
-  //Serial.println(xPortGetCoreID());
   delay(10);
 
-  this->connectWifi();
+  this->duration = 0;
+  this->remaning = 0;
+  this->lastMillis = millis();
 
   this->wifiClient = new WiFiClient();
   this->mqttClient = new MQTTClient();
   
   this->mqttClient->begin(MQTT_SERVER, MQTT_PORT, *(this->wifiClient));
   this->mqttClient->onMessage(mqttCallback);
-  this->connectMQTT();
 }
 
 // Function to connect and reconnect the Wifi.
@@ -73,7 +73,8 @@ bool    Main::connectMQTT() {
 
   if (this->mqttClient->connected()) {
     Serial.println(F("MQTT Connected !"));
-    this->mqttClient->subscribe(MQTT_TOPIC, 1);
+    this->mqttClient->subscribe(MQTT_TOPIC_DURATION, 1);
+    this->mqttClient->subscribe(MQTT_TOPIC_TRIGGER, 1);
     return true;
   } else {
     Serial.println(F("MQTT Unable to connect to the server !"));
@@ -83,21 +84,58 @@ bool    Main::connectMQTT() {
 
 void    Main::loop() {
   if (!(this->connectWifi() && this->connectMQTT())) {
+    this->turnOff();
     delay(30000);
     return;
   }
 
+  unsigned int currentMillis = millis();
+  unsigned int elapsedTime = currentMillis - this->lastMillis;
+
   this->mqttClient->loop();
-  
-  delay(1000);
+
+  if (this->remaning > 0) {
+    Serial.println(this->remaning);
+    this->remaning -= elapsedTime;
+    if (this->remaning <= 0) {
+      this->turnOff();
+    }
+  }
+
+  this->lastMillis = currentMillis;
+  delay(250);
 }
 
 void    Main::messageReceived(String &topic, String &payload) {
-  Serial.print(topic);
-  Serial.print(" : ");
-  Serial.println(payload);
+  // Serial.print(topic);
+  // Serial.print(" : ");
+  // Serial.println(payload);
+  if (topic.equals(MQTT_TOPIC_DURATION)) {
+    this->duration = payload.toInt();
+    Serial.print(F("Set duration to "));
+    Serial.println(this->duration);
+  } else if (topic.equals(MQTT_TOPIC_TRIGGER)) {
+    if (payload.equals(F("True"))) {
+      this->remaning = 1000 * this->duration;
+      this->turnOn();
+    } else if (this->remaning != 0) {
+      this->turnOff();
+    }
+  }
 }
 
 void    Main::buttonInterrupt() {
   delay(300);
+}
+
+void    Main::turnOn() {
+  Serial.println("TURN ON !");
+  digitalWrite(LED_BLUE_GPIO, HIGH);
+}
+
+void    Main::turnOff() {
+  Serial.println("TURN OFF !");
+  digitalWrite(LED_BLUE_GPIO, LOW);
+  this->remaning = 0;
+  this->mqttClient->publish(MQTT_TOPIC_TRIGGER, "False", true, 1);
 }
