@@ -8,6 +8,15 @@ Main::Main(MQTTClientCallbackSimple mqttCallback) {
   Serial.println(F("Starting"));
   delay(10);
 
+  pinMode(LED_BLUE_GPIO, OUTPUT);
+  pinMode(LED_RED_GPIO, OUTPUT);
+  pinMode(LED_GREEN_GPIO, OUTPUT);
+  pinMode(MOTOR_GPIO, OUTPUT);
+  pinMode(BUTTON_GPIO, INPUT_PULLUP);
+  pinMode(PROBE_GPIO, INPUT_PULLUP);
+  digitalWrite(LED_RED_GPIO, HIGH);
+  digitalWrite(MOTOR_GPIO, LOW);
+
   this->duration = 0;
   this->remaning = 0;
   this->lastMillis = millis();
@@ -68,7 +77,6 @@ bool    Main::connectMQTT() {
     Serial.print(".");
     timeout--;
   }
-
   Serial.println("");
 
   if (this->mqttClient->connected()) {
@@ -84,10 +92,15 @@ bool    Main::connectMQTT() {
 
 void    Main::loop() {
   if (!(this->connectWifi() && this->connectMQTT())) {
+    digitalWrite(LED_GREEN_GPIO, LOW);
+    digitalWrite(LED_RED_GPIO, HIGH);
     this->turnOff();
     delay(30000);
     return;
   }
+
+  digitalWrite(LED_RED_GPIO, LOW);
+  digitalWrite(LED_GREEN_GPIO, HIGH);
 
   unsigned int currentMillis = millis();
   unsigned int elapsedTime = currentMillis - this->lastMillis;
@@ -107,9 +120,9 @@ void    Main::loop() {
 }
 
 void    Main::messageReceived(String &topic, String &payload) {
-  // Serial.print(topic);
-  // Serial.print(" : ");
-  // Serial.println(payload);
+  Serial.print(topic);
+  Serial.print(" : ");
+  Serial.println(payload);
   if (topic.equals(MQTT_TOPIC_DURATION)) {
     this->duration = payload.toInt();
     Serial.print(F("Set duration to "));
@@ -129,13 +142,15 @@ void    Main::buttonInterrupt() {
 }
 
 void    Main::turnOn() {
-  Serial.println("TURN ON !");
+  // Serial.println("TURN ON !");-
   digitalWrite(LED_BLUE_GPIO, HIGH);
+  digitalWrite(MOTOR_GPIO, HIGH);
 }
 
 void    Main::turnOff() {
   Serial.println("TURN OFF !");
   digitalWrite(LED_BLUE_GPIO, LOW);
+  digitalWrite(MOTOR_GPIO, LOW);
   this->remaning = 0;
   this->mqttClient->publish(MQTT_TOPIC_TRIGGER, "False", true, 1);
 }
